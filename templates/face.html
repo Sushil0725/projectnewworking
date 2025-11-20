@@ -17,10 +17,8 @@
             font-family: 'Courier New', monospace;
         }
         
-        /* THE FACE (Simple CSS for now, replace with IMG tag later) */
         .face-container {
-            width: 300px;
-            height: 300px;
+            width: 300px; height: 300px;
             border: 4px solid #00ffcc;
             border-radius: 50%;
             display: flex;
@@ -28,9 +26,15 @@
             justify-content: center;
             box-shadow: 0 0 50px rgba(0, 255, 204, 0.2);
             margin-bottom: 30px;
-            position: relative;
+            transition: box-shadow 0.2s;
         }
         
+        /* When Jarvis Speaks, the face glows */
+        .speaking {
+            box-shadow: 0 0 100px rgba(0, 255, 204, 0.8);
+            border-color: #fff;
+        }
+
         .eye {
             width: 60px; height: 60px;
             background: #00ffcc;
@@ -46,38 +50,63 @@
         }
 
         #status { font-size: 20px; color: #555; }
-        #transcript { font-size: 14px; color: #00ffcc; margin-top: 20px; max-width: 80%; text-align: center;}
+        #transcript { font-size: 14px; color: #aaa; margin-top: 20px; max-width: 80%; text-align: center;}
+        #reply-text { font-size: 18px; color: #00ffcc; margin-top: 10px; font-weight: bold; text-align: center; max-width: 80%;}
 
-        /* Hidden start button overlay */
         #start-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9);
             display: flex; align-items: center; justify-content: center;
             z-index: 10;
         }
-        button { padding: 20px; font-size: 24px; background: #00ffcc; border: none; }
+        button { padding: 20px; font-size: 24px; background: #00ffcc; border: none; border-radius: 10px; cursor: pointer;}
     </style>
 </head>
 <body>
 
     <div id="start-overlay">
-        <button onclick="initSystem()">TAP TO INITIALIZE JARVIS</button>
+        <button onclick="initSystem()">TAP TO ACTIVATE JARVIS</button>
     </div>
 
-    <div class="face-container">
+    <div class="face-container" id="face">
         <div class="eye"></div>
         <div class="eye"></div>
     </div>
 
     <div id="status">OFFLINE</div>
     <div id="transcript">...</div>
+    <div id="reply-text"></div>
 
     <script>
         let recognition;
+        let synth = window.speechSynthesis;
+        let isSpeaking = false;
         
         function initSystem() {
             document.getElementById('start-overlay').style.display = 'none';
+            // Wake up the speech engine (iOS needs a user tap to allow sound)
+            speak("Systems online.");
             startListening();
+        }
+
+        function speak(text) {
+            if (synth.speaking) synth.cancel(); // Stop current speech to say new thing
+            
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            
+            // Visual Effect
+            utterance.onstart = () => {
+                document.getElementById('face').classList.add('speaking');
+                isSpeaking = true;
+            };
+            utterance.onend = () => {
+                document.getElementById('face').classList.remove('speaking');
+                isSpeaking = false;
+            };
+
+            synth.speak(utterance);
         }
 
         function startListening() {
@@ -85,7 +114,7 @@
             
             if ('webkitSpeechRecognition' in window) {
                 recognition = new webkitSpeechRecognition();
-                recognition.continuous = true; // Keep listening
+                recognition.continuous = true; 
                 recognition.interimResults = false;
                 recognition.lang = 'en-US';
 
@@ -95,23 +124,25 @@
                 };
 
                 recognition.onend = () => {
-                    // If it stops, restart it automatically
                     statusDiv.innerText = "RESTARTING...";
+                    // Restart unless we stopped it manually
                     setTimeout(() => recognition.start(), 1000);
                 };
 
                 recognition.onresult = (event) => {
+                    // If Jarvis is talking, ignore input so he doesn't hear himself
+                    if(isSpeaking) return;
+
                     const lastIdx = event.results.length - 1;
                     const text = event.results[lastIdx][0].transcript;
-                    document.getElementById('transcript').innerText = `"${text}"`;
+                    document.getElementById('transcript').innerText = `You: "${text}"`;
                     
-                    // Send to Brain
                     sendToBrain(text);
                 };
 
                 recognition.start();
             } else {
-                alert("iOS requires Safari or Chrome. Voice API not supported.");
+                alert("Voice API not supported. Use Chrome or Safari.");
             }
         }
 
@@ -123,7 +154,11 @@
                     body: JSON.stringify({text: text})
                 });
                 const data = await res.json();
-                console.log("AI Reply:", data.reply);
+                
+                // Update UI and Speak
+                document.getElementById('reply-text').innerText = `Jarvis: "${data.reply}"`;
+                speak(data.reply);
+
             } catch (e) {
                 console.error("Brain disconnected");
             }
