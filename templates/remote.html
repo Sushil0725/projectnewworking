@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Remote</title>
+    <style>
+        body {
+            background-color: #121212;
+            touch-action: manipulation; /* Prevents double-tap zoom */
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+            -webkit-user-select: none; /* Disable selection on iPhone */
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 100px 100px 100px;
+            gap: 10px;
+        }
+        button {
+            width: 90px; height: 90px;
+            background: #222;
+            border: 2px solid #00ffcc;
+            color: #00ffcc;
+            border-radius: 50%;
+            font-size: 30px;
+            touch-action: manipulation;
+        }
+        button:active { background: #00ffcc; color: black; }
+        .stop { border-color: #ff0000; color: #ff0000; border-radius: 15px; }
+        .stop:active { background: #ff0000; color: white; }
+        h2 { color: #555; font-family: sans-serif; position: absolute; top: 20px; }
+    </style>
+</head>
+<body>
+    <h2>MANUAL OVERRIDE</h2>
+    <div class="grid">
+        <div></div>
+        <button ontouchstart="send('forward')" onmousedown="send('forward')">▲</button>
+        <div></div>
+
+        <button ontouchstart="send('left')" onmousedown="send('left')">◀</button>
+        <button class="stop" ontouchstart="send('stop')" onmousedown="send('stop')">■</button>
+        <button ontouchstart="send('right')" onmousedown="send('right')">▶</button>
+
+        <div></div>
+        <button ontouchstart="send('backward')" onmousedown="send('backward')">▼</button>
+        <div></div>
+    </div>
+
+    <script>
+        // Simple fetch to the python backend
+        function send(action) {
+            // navigator.vibrate(50); // Tactile feedback on phone
+            fetch(`/manual_input?action=${action}`);
+        }
+    </script>
+</body>
+</html>
