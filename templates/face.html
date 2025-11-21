@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Jarvis Face</title>
+    <title>Sonic AI</title>
     <style>
         body {
-            background: black;
-            color: #00ffcc;
+            background: #050505;
+            color: #00aaff;
             display: flex;
             flex-direction: column;
             align-items: center;
@@ -14,157 +14,197 @@
             height: 100vh;
             margin: 0;
             overflow: hidden;
-            font-family: 'Courier New', monospace;
+            font-family: 'Verdana', sans-serif;
         }
         
+        /* MIC TOGGLE BUTTON (TOP RIGHT) */
+        #mic-toggle {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 60px;
+            height: 60px;
+            background: #111;
+            border: 2px solid #00ff00;
+            color: #00ff00;
+            border-radius: 50%;
+            font-size: 24px;
+            cursor: pointer;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: 0.3s;
+        }
+        #mic-toggle.off {
+            border-color: #ff0000;
+            color: #ff0000;
+            background: #330000;
+        }
+
+        /* The Face Ring */
         .face-container {
-            width: 300px; height: 300px;
-            border: 4px solid #00ffcc;
+            width: 280px; height: 280px;
+            border: 6px solid #00aaff; /* Default Blue (Awake) */
             border-radius: 50%;
             display: flex;
             align-items: center;
             justify-content: center;
-            box-shadow: 0 0 50px rgba(0, 255, 204, 0.2);
-            margin-bottom: 30px;
-            transition: box-shadow 0.2s;
+            box-shadow: 0 0 60px rgba(0, 170, 255, 0.4); /* Default Glow */
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+            position: relative;
         }
         
-        .speaking {
-            box-shadow: 0 0 100px rgba(0, 255, 204, 0.8);
-            border-color: #fff;
-        }
+        /* STATES */
+        .face-container.muted { border-color: #333; box-shadow: none; }
+        .face-container.speaking { border-color: #fff; box-shadow: 0 0 80px rgba(255, 255, 255, 0.8); }
 
         .eye {
-            width: 60px; height: 60px;
-            background: #00ffcc;
+            width: 70px; height: 70px;
+            background: #00aaff;
             border-radius: 50%;
-            margin: 0 30px;
+            margin: 0 25px;
             animation: blink 4s infinite;
         }
 
-        @keyframes blink {
-            0%, 96% { transform: scaleY(1); }
-            98% { transform: scaleY(0.1); }
-            100% { transform: scaleY(1); }
-        }
+        @keyframes blink { 0%, 96% { transform: scaleY(1); } 98% { transform: scaleY(0.1); } 100% { transform: scaleY(1); } }
 
-        #status { font-size: 20px; color: #555; }
-        #transcript { font-size: 14px; color: #aaa; margin-top: 20px; max-width: 80%; text-align: center;}
-        #reply-text { font-size: 18px; color: #00ffcc; margin-top: 10px; font-weight: bold; text-align: center; max-width: 80%;}
+        #status { font-size: 18px; color: #00aaff; letter-spacing: 2px; text-transform: uppercase;}
+        #transcript { font-size: 14px; color: #888; margin-top: 15px; max-width: 80%; text-align: center; min-height: 20px;}
+        #reply-text { font-size: 18px; color: #fff; margin-top: 10px; font-weight: bold; text-align: center; max-width: 85%;}
 
         #start-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
+            background: rgba(0,0,0,0.95);
             display: flex; align-items: center; justify-content: center;
             z-index: 10;
         }
-        button { padding: 20px; font-size: 24px; background: #00ffcc; border: none; border-radius: 10px; cursor: pointer;}
+        .big-btn { padding: 30px; font-size: 24px; background: #00aaff; color: white; border: none; border-radius: 12px; font-weight: bold;}
     </style>
 </head>
 <body>
 
+    <!-- START BUTTON -->
     <div id="start-overlay">
-        <button onclick="initSystem()">TAP TO ACTIVATE JARVIS</button>
+        <button class="big-btn" onclick="initSystem()">INITIALIZE SONIC</button>
     </div>
 
+    <!-- MIC TOGGLE -->
+    <button id="mic-toggle" onclick="toggleMasterMic()">🎙️</button>
+
+    <!-- FACE -->
     <div class="face-container" id="face">
         <div class="eye"></div>
         <div class="eye"></div>
     </div>
 
-    <div id="status">OFFLINE</div>
-    <div id="transcript">...</div>
+    <div id="status">SYSTEM READY</div>
+    <div id="transcript">Listening...</div>
     <div id="reply-text"></div>
 
     <script>
         let recognition;
         let synth = window.speechSynthesis;
-        
-        // State Flags
-        let isSpeaking = false; 
-        let lastRobotReply = ""; 
+        let selectedVoice = null;
+          
+        let isSpeaking = false;    
+        let micEnabled = true;     // Default is ON
+        let lastRobotReply = "";   
 
         function initSystem() {
             document.getElementById('start-overlay').style.display = 'none';
-            speak("Systems online.");
+            setupVoice();
+            speak("Sonic systems online. I am listening.");
             startListening();
         }
 
+        function toggleMasterMic() {
+            micEnabled = !micEnabled;
+            const btn = document.getElementById('mic-toggle');
+            const status = document.getElementById('status');
+            const face = document.getElementById('face');
+            
+            if (micEnabled) {
+                btn.classList.remove('off');
+                btn.innerText = "🎙️";
+                status.innerText = "LISTENING...";
+                status.style.color = "#00aaff";
+                face.classList.remove('muted');
+                recognition.start();
+            } else {
+                btn.classList.add('off');
+                btn.innerText = "🔇";
+                status.innerText = "MIC MUTED";
+                status.style.color = "#555";
+                face.classList.add('muted');
+                recognition.stop();
+            }
+        }
+
+        function setupVoice() {
+            let voices = synth.getVoices();
+            selectedVoice = voices.find(v => v.name.includes("Google US English")) || 
+                            voices.find(v => v.name.includes("Samantha")) || 
+                            voices.find(v => v.lang.includes("en-US"));
+        }
+        synth.onvoiceschanged = setupVoice;
+
         function speak(text) {
-            // 1. INSTANT LOCK: Stop listening immediately when we decide to speak
-            isSpeaking = true; 
-            lastRobotReply = text.toLowerCase().replace(/[^a-z0-9 ]/g, ""); // Clean for comparison later
-
+            isSpeaking = true;
+            lastRobotReply = text.toLowerCase().replace(/[^a-z0-9 ]/g, "");
+            
             if (synth.speaking) synth.cancel();
-            
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.rate = 1.0;
-            utterance.pitch = 1.0;
-            
-            utterance.onstart = () => {
-                document.getElementById('face').classList.add('speaking');
-            };
 
+            const utterance = new SpeechSynthesisUtterance(text);
+            if (selectedVoice) utterance.voice = selectedVoice;
+            utterance.rate = 1.1; 
+            utterance.pitch = 1.0;
+
+            utterance.onstart = () => document.getElementById('face').classList.add('speaking');
             utterance.onend = () => {
                 document.getElementById('face').classList.remove('speaking');
-                
-                // 2. COOLDOWN: Keep listening disabled for 2 seconds AFTER speech ends
-                // This prevents the iPad from hearing the echo in the room.
-                setTimeout(() => {
-                    isSpeaking = false;
-                }, 2000);
+                setTimeout(() => { isSpeaking = false; }, 2000);
             };
 
             synth.speak(utterance);
         }
 
         function startListening() {
-            const statusDiv = document.getElementById('status');
-            
-            if ('webkitSpeechRecognition' in window) {
-                recognition = new webkitSpeechRecognition();
-                recognition.continuous = true; 
-                recognition.interimResults = false;
-                recognition.lang = 'en-US';
+            if (!('webkitSpeechRecognition' in window)) return alert("Browser not supported.");
 
-                recognition.onstart = () => {
-                    statusDiv.innerText = "LISTENING...";
-                    statusDiv.style.color = "#00ffcc";
-                };
+            recognition = new webkitSpeechRecognition();
+            recognition.continuous = true;
+            recognition.interimResults = false; 
+            recognition.lang = 'en-US';
 
-                recognition.onend = () => {
-                    statusDiv.innerText = "RESTARTING...";
-                    setTimeout(() => recognition.start(), 1000);
-                };
+            recognition.onstart = () => {
+                if(micEnabled) {
+                    document.getElementById('status').innerText = "LISTENING...";
+                    document.getElementById('status').style.color = "#00aaff";
+                }
+            };
 
-                recognition.onresult = (event) => {
-                    const lastIdx = event.results.length - 1;
-                    const rawText = event.results[lastIdx][0].transcript;
-                    const cleanText = rawText.toLowerCase().replace(/[^a-z0-9 ]/g, "");
+            recognition.onend = () => {
+                if (micEnabled) setTimeout(() => recognition.start(), 500);
+            };
 
-                    // --- FILTERING LOGIC ---
+            recognition.onresult = (event) => {
+                if (isSpeaking || !micEnabled) return;
 
-                    // Filter 1: If the 'isSpeaking' flag is true (or in cooldown), ignore EVERYTHING.
-                    if(isSpeaking) {
-                        console.log("Ignored input (Speaking/Cooldown):", rawText);
-                        return;
-                    }
+                const lastIdx = event.results.length - 1;
+                const rawText = event.results[lastIdx][0].transcript;
+                const cleanText = rawText.toLowerCase().trim();
 
-                    // Filter 2: Echo Check. If the input is almost identical to what Jarvis just said, ignore it.
-                    if (lastRobotReply.length > 0 && cleanText.includes(lastRobotReply)) {
-                        console.log("Ignored input (Self-Echo):", rawText);
-                        return;
-                    }
+                // Echo Cancellation
+                if (lastRobotReply.length > 0 && cleanText.includes(lastRobotReply)) return;
 
-                    // If passed filters, process it
-                    document.getElementById('transcript').innerText = `You: "${rawText}"`;
-                    sendToBrain(rawText);
-                };
+                document.getElementById('transcript').innerText = `Heard: "${rawText}"`;
 
-                recognition.start();
-            } else {
-                alert("Voice API not supported. Use Chrome or Safari.");
-            }
+                // ALWAYS SEND TO BRAIN (No Wake Word)
+                sendToBrain(cleanText);
+            };
+            recognition.start();
         }
 
         async function sendToBrain(text) {
@@ -176,11 +216,10 @@
                 });
                 const data = await res.json();
                 
-                document.getElementById('reply-text').innerText = `Jarvis: "${data.reply}"`;
+                document.getElementById('reply-text').innerText = `Sonic: "${data.reply}"`;
                 speak(data.reply);
-
             } catch (e) {
-                console.error("Brain disconnected");
+                console.error("Connection Error");
             }
         }
     </script>

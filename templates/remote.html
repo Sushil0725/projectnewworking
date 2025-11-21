@@ -3,23 +3,62 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Remote</title>
+    <title>Sonic Remote</title>
     <style>
         body {
             background-color: #121212;
-            touch-action: manipulation; /* Prevents double-tap zoom */
+            touch-action: manipulation;
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center;
             height: 100vh;
             margin: 0;
-            -webkit-user-select: none; /* Disable selection on iPhone */
+            font-family: sans-serif;
+            -webkit-user-select: none;
         }
+
+        /* TOP CONTROL BAR */
+        .top-bar {
+            display: flex;
+            gap: 20px;
+            margin-top: 30px;
+            margin-bottom: 40px;
+        }
+
+        .toggle-btn {
+            padding: 15px 20px;
+            font-size: 14px;
+            font-weight: bold;
+            border: 2px solid #444;
+            background: #222;
+            color: #888;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+
+        /* STATES */
+        .toggle-btn.active-red {
+            background: #550000;
+            border-color: #ff0000;
+            color: #ff0000;
+            box-shadow: 0 0 15px rgba(255, 0, 0, 0.4);
+        }
+        
+        .toggle-btn.active-green {
+            background: #003300;
+            border-color: #00ff00;
+            color: #00ff00;
+        }
+
+        /* JOYSTICK GRID */
         .grid {
             display: grid;
             grid-template-columns: 100px 100px 100px;
             gap: 10px;
+            margin-top: auto;
+            margin-bottom: 100px;
         }
         button {
             width: 90px; height: 90px;
@@ -33,11 +72,15 @@
         button:active { background: #00ffcc; color: black; }
         .stop { border-color: #ff0000; color: #ff0000; border-radius: 15px; }
         .stop:active { background: #ff0000; color: white; }
-        h2 { color: #555; font-family: sans-serif; position: absolute; top: 20px; }
     </style>
 </head>
 <body>
-    <h2>MANUAL OVERRIDE</h2>
+
+    <div class="top-bar">
+        <button id="muteBtn" class="toggle-btn" onclick="toggleMute()">Mic Active</button>
+        <button id="lockBtn" class="toggle-btn" onclick="toggleLock()">Sonic Unlocked</button>
+    </div>
+
     <div class="grid">
         <div></div>
         <button ontouchstart="send('forward')" onmousedown="send('forward')">▲</button>
@@ -53,10 +96,42 @@
     </div>
 
     <script>
-        // Simple fetch to the python backend
+        // State tracking (visual only, server handles truth)
+        let isMuted = false;
+        let isLocked = false;
+
         function send(action) {
-            // navigator.vibrate(50); // Tactile feedback on phone
             fetch(`/manual_input?action=${action}`);
+        }
+
+        function toggleMute() {
+            fetch('/toggle_global_mute')
+                .then(res => res.json())
+                .then(data => {
+                    const btn = document.getElementById('muteBtn');
+                    if (data.muted) {
+                        btn.innerText = "MIC MUTED";
+                        btn.classList.add('active-red');
+                    } else {
+                        btn.innerText = "MIC ACTIVE";
+                        btn.classList.remove('active-red');
+                    }
+                });
+        }
+
+        function toggleLock() {
+            fetch('/toggle_manual_lock')
+                .then(res => res.json())
+                .then(data => {
+                    const btn = document.getElementById('lockBtn');
+                    if (data.locked) {
+                        btn.innerText = "OVERRIDE ON";
+                        btn.classList.add('active-red');
+                    } else {
+                        btn.innerText = "SONIC UNLOCKED";
+                        btn.classList.remove('active-red');
+                    }
+                });
         }
     </script>
 </body>
